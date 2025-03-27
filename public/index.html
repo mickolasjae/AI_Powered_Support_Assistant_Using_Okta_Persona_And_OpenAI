@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title></title>
+  <script src="https://cdn.withpersona.com/dist/persona-v5.1.2.js"
+    integrity="sha384-nuMfOsYXMwp5L13VJicJkSs8tObai/UtHEOg3f7tQuFWU5j6LAewJbjbF5ZkfoDo"
+    crossorigin="anonymous"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+  <style>
+
+    /* Base styles */
+    html {
+  height: 100%;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: visible; /* Changed from 'hidden' */
+  transition: background-color 0.3s, color 0.3s;
+
+}
+
+    #verification-status {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: xx-large;
+    }
+
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      width: 95%;
+      max-width: 600px;
+      height: 90vh;
+      max-height: 90vh;
+      background-color: var(--container-color);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      border-radius: 15px;
+      overflow: hidden;
+      transition: background-color 0.3s;
+    }
+
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--header-color);
+      color: var(--header-text-color);
+      padding: 15px;
+      font-size: 1.2em;
+      font-weight: 700;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    #toggle-mode {
+      border: none;
+      /* Remove border */
+      border-radius: 0;
+      /* Remove border radius */
+      background: none;
+      /* Remove background color */
+      width: 100px;
+      /* Set specific width */
+      height: 100px;
+      /* Set specific height */
+      cursor: pointer;
+      /* Maintain pointer cursor */
+      display: inline-block;
+    }
+
+    #messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      background: linear-gradient(to bottom, var(--background-gradient-start), var(--background-gradient-end));
+      transition: background 0.3s;
+    }
+
+    .message {
+      margin: 10px 0;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .user-message {
+      justify-content: flex-end;
+    }
+
+    .message-text {
+      max-width: 85%;
+      padding: 10px;
+      border-radius: 15px;
+      line-height: 1.4;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      font-size: 1em;
+      color: var(--message-text);
+      background-color: var(--message-background);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .bot-message .message-text {
+      background-color: var(--bot-message-background);
+      color: var(--bot-message-text);
+    }
+
+    #audio-controls {
+      display: none;
+      /* Hidden by default */
+      justify-content: flex-start;
+      align-items: center;
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f4f4f4;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* General button styling */
+    #record-button,
+    #stop-button {
+      margin-right: 10px;
+      padding: 10px 20px;
+      font-size: 1em;
+      font-weight: bold;
+      border-radius: 8px;
+      border: none;
+      transition: background-color 0.3s ease, color 0.3s ease, cursor 0.3s ease;
+      cursor: pointer;
+      /* Default cursor */
+    }
+
+    /* Start Recording button */
+    #record-button {
+      background-color: #007BFF;
+      /* Bright blue */
+      color: white;
+    }
+
+    #record-button:disabled {
+      background-color: #cccccc;
+      /* Light gray */
+      color: #666666;
+      /* Dimmed text */
+      cursor: not-allowed;
+      /* Indicate it's not clickable */
+    }
+
+    /* Stop Recording button */
+    #stop-button {
+      background-color: #FF4136;
+      /* Bright red */
+      color: white;
+    }
+
+    #stop-button:disabled {
+      background-color: #cccccc;
+      /* Light gray */
+      color: #666666;
+      /* Dimmed text */
+      cursor: not-allowed;
+      /* Indicate it's not clickable */
+    }
+
+    /* Hover states for buttons */
+    #record-button:hover:not(:disabled) {
+      background-color: #0056b3;
+      /* Darker blue for hover */
+    }
+
+    #stop-button:hover:not(:disabled) {
+      background-color: #c4001d;
+      /* Darker red for hover */
+    }
+
+    #record-status {
+      font-size: 0.9em;
+      color: #555;
+    }
+
+    .persona-button {
+      background: linear-gradient(135deg, #007BFF, #0056b3);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 1em;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      display: inline-block;
+    }
+
+    .persona-button:hover {
+      background: linear-gradient(135deg, #0056b3, #003e7e);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    #input-area {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid var(--divider-color);
+      background-color: var(--input-area-background);
+      transition: background-color 0.3s, border-color 0.3s;
+      align-items: center;
+      height: auto;
+    }
+
+    #chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--divider-color);
+      border-radius: 20px;
+      font-size: 1em;
+      background-color: var(--input-background);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+      box-sizing: border-box;
+    }
+
+    #send-button {
+      margin-left: 10px;
+      background-color: var(--button-background);
+      border: none;
+      border-radius: 20px;
+      padding: 10px 15px;
+      color: var(--button-text);
+      font-size: 1em;
+      cursor: pointer;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    #send-button:hover {
+      background-color: var(--button-hover);
+    }
+
+    /* Responsive design */
+    @media (max-width: 600px) {
+      #chat-container {
+        height: 100vh;
+    width: 100%;
+      }
+
+      #header {
+        font-size: 1em;
+        padding: 10px;
+      }
+
+      #toggle-mode {
+        padding: 4px 16px;
+        font-size: 0.8em;
+      }
+
+      #chat-input {
+        font-size: 0.9em;
+        padding: 10px;
+      }
+
+      #send-button {
+        padding: 10px;
+        font-size: 0.9em;
+      }
+
+      .message-text {
+        max-width: 90%;
+        font-size: 0.9em;
+      }
+
+      #messages {
+        height: 70%;
+      }
+
+      #input-area {
+        height: 10%;
+      }
+    }
+
+    /* Scrollbar styling */
+    #messages::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #messages::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-color);
+      border-radius: 4px;
+    }
+
+    /* Light and Dark mode styles */
+    :root {
+      --background-color: #121212;
+      --container-color: #ffffff;
+      --header-color: #007BFF;
+      --header-text-color: #ffffff;
+      --text-color: #000000;
+      --button-background: #007BFF;
+      --button-text: #ffffff;
+      --button-hover: #0056b3;
+      --divider-color: #ddd;
+      --input-background: #ffffff;
+      --input-area-background: #f9f9f9;
+      --scrollbar-color: #ddd;
+      --background-gradient-start: #f4f7fc;
+      --background-gradient-end: #ffffff;
+      --message-background: #e9f5ff;
+      --message-text: #007BFF;
+      --bot-message-background: #f4f7fc;
+      --bot-message-text: #007BFF;
+    }
+
+    [data-theme="dark"] {
+      --background-color: #121212;
+      --container-color: #1e1e1e;
+      --header-color: #1f1f1f;
+      --header-text-color: #ffffff;
+      --text-color: #f4f4f4;
+      --button-background: #007BFF;
+      --button-text: #ffffff;
+      --button-hover: #0056b3;
+      --divider-color: #333;
+      --input-background: #2c2c2c;
+      --input-area-background: #1f1f1f;
+      --scrollbar-color: #555;
+      --background-gradient-start: #1e1e1e;
+      --background-gradient-end: #121212;
+      --message-background: #2a2a2a;
+      --message-text: #ffffff;
+      --bot-message-background: #1e1e1e;
+      --bot-message-text: #ffffff;
+    }
+  </style>
+</head>
+
+<body data-theme="dark">
+  <div id="chat-container">
+    <div id="header">
+      <img id="toggle-mode" src="lightbulb.png" alt="Toggle Theme" width="100" height="100" style="cursor: pointer;" />
+      <span id="verification-status" class="status-unverified">Unverified</span>
+    </div>
+    <div id="audio-controls">
+      <button id="record-button">Start Recording</button>
+      <button id="stop-button" disabled>Stop Recording</button>
+      <p id="record-status" style="font-style: italic;"></p>
+    </div>
+    <div id="messages">
+      <!-- Chat messages will appear here -->
+
+    </div>
+    <div id="input-area">
+      <input type="text" id="chat-input" placeholder="Type 'start over' to start from the beginning" />
+      <button id="send-button">Send</button>
+    </div></div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOM fully loaded and parsed");
+      const socket = io();
+      const verificationStatus = document.getElementById('verification-status');
+
+      socket.on('verification-state', (state) => {
+        if (state === 'verified') {
+          verificationStatus.textContent = 'Verified';
+          verificationStatus.style.color = 'green';
+          addMessage('Bot', 'Your identity has been verified successfully!', true);
+        } else if (state === 'error') {
+          verificationStatus.textContent = 'Verification Failed';
+          verificationStatus.style.color = 'red';
+          addMessage('Bot', 'Verification failed. Please try again.', true);
+        }
+      });
+
+      const messagesDiv = document.getElementById('messages');
+      const chatInput = document.getElementById('chat-input');
+      const sendButton = document.getElementById('send-button');
+      const toggleModeButton = document.getElementById('toggle-mode');
+      const body = document.body;
+
+      body.setAttribute('data-theme', 'dark');
+      toggleModeButton.src = 'darkbulb.png';
+
+      toggleModeButton.addEventListener('click', () => {
+        const isDark = body.getAttribute('data-theme') === 'dark';
+        body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        toggleModeButton.src = isDark ? 'lightbulb.png' : 'darkbulb.png';
+      });
+
+      function toggleAudioControls(show) {
+  const audioControls = document.getElementById("audio-controls");
+  if (!audioControls) {
+    console.error("Audio controls element not found.");
+    return; // Exit the function early
+  }
+  console.log("Audio controls element found.");
+  audioControls.style.display = show ? "flex" : "none";
+}
+
+      socket.on("chat reply", (data) => {
+  console.log("Server reply received:", data);
+  if (data && data.reply) {
+    addMessage("Bot", data.reply, true);
+  }
+
+    // Execute any script sent from the server
+    if (data.script) {
+    console.log("Executing script...");
+    const scriptTag = document.createElement("script");
+    scriptTag.textContent = data.script;
+    document.body.appendChild(scriptTag);
+  }
+
+
+  // Handle Zoom link
+  if (data.zoomLink) {
+    console.log("Processing Zoom link...");
+    const zoomMessage = `
+      <p>Join the Zoom meeting:</p>
+      <a href="${data.zoomLink}" target="_blank">${data.zoomLink}</a>
+    `;
+    addMessage("Bot", zoomMessage, true);
+  }
+
+  if (data && data.nextStep === "recordIssue") {
+
+    console.log(data)
+    console.log(data.nextStep)
+    toggleAudioControls(true);
+  } else {
+    console.log(data)
+    console.log(data.nextStep)
+    toggleAudioControls(false);
+  }
+});
+
+      function addMessage(sender, message, isHTML = false) {
+        const messageContainer = document.createElement('div');
+        messageContainer.classList.add('message', sender === 'You' ? 'user-message' : 'bot-message');
+
+        const messageText = document.createElement('div');
+        messageText.className = 'message-text';
+        if (isHTML) {
+          messageText.innerHTML = message;
+        } else {
+          messageText.textContent = message;
+        }
+
+        messageContainer.appendChild(messageText);
+        messagesDiv.appendChild(messageContainer);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      function sendMessage() {
+        const userMessage = chatInput.value.trim();
+        if (!userMessage) {
+          return;
+        }
+
+        if (userMessage.toLowerCase() === "start over") {
+          socket.emit("start over");
+          messagesDiv.innerHTML = "";
+          chatInput.value = "";
+          verificationStatus.textContent = "Unverified";
+          verificationStatus.style.color = "";
+          toggleAudioControls(false);
+          addMessage("Bot", "The app has been reset to its initial state.", false);
+          return;
+        }
+
+        addMessage("You", userMessage);
+        chatInput.value = "";
+        socket.emit("chat message", userMessage);
+      }
+
+      sendButton.addEventListener('click', sendMessage);
+      chatInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          sendMessage();
+        }
+      });
+
+      const recordButton = document.getElementById('record-button');
+      const stopButton = document.getElementById('stop-button');
+      const recordStatus = document.getElementById('record-status');
+      let mediaRecorder;
+      let audioChunks = [];
+
+      stopButton.disabled = true;
+
+      recordButton.addEventListener('click', async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+
+          mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+          };
+
+          mediaRecorder.start();
+          recordButton.disabled = true;
+          stopButton.disabled = false;
+          recordStatus.textContent = 'Recording...';
+        } catch (err) {
+          recordStatus.textContent = 'Failed to access microphone. Please check your settings.';
+          console.error('Microphone access error:', err);
+        }
+      });
+
+      stopButton.addEventListener('click', () => {
+        mediaRecorder.stop();
+        recordButton.disabled = false;
+        stopButton.disabled = true;
+        recordStatus.textContent = 'Processing your audio...';
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = () => {
+            socket.emit('audio message', reader.result);
+            recordStatus.textContent = 'Audio uploaded. Waiting for the next step.';
+          };
+          reader.readAsDataURL(audioBlob);
+          audioChunks = [];
+        };
+      });
+    });
+    </script>
+</body>
+
+</html>
